@@ -1,0 +1,49 @@
+:root {
+    --grid-size: 7;
+}
+
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #333333;
+}
+
+.grid {
+    height: 70%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(var(--grid-size), auto);
+    grid-template-rows: repeat(var(--grid-size), auto);
+    position: relative;
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.grid > .tile {
+    background-color: white;
+    border: solid 1px black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.grid > .tile > p {
+    margin: 0;
+    position: absolute;
+}
+
+.grid > .tile.u {
+    border-top: none;
+}
+.grid > .tile.d {
+    border-bottom: none;
+}
+.grid > .tile.l {
+    border-left: none;
+}
+.grid > .tile.r {
+    border-right: none;
+}
