@@ -1,16 +1,16 @@
-var grid = document.querySelector('.grid')
+var gridElement = document.querySelector('.grid')
 var root = document.querySelector(':root')
-const GRID_SIZE = 4;
+const GRID_SIZE = 5;
 var DIRECTIONS = [[0, 1], [0, -1], [1, 0], [-1, 0]]
 var DIRECTIONS_KEYS = {u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0]}
 var EXTENDED_DIRECTIONS = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]
 
 var hasFinishedBlocks = false
 var blocks = []
+var grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0))
 
 root.style.setProperty('--grid-size', GRID_SIZE)
 
-var numberCounts = [0, 0, 0, 0, 0]
 
 for (var y = 0; y < GRID_SIZE; y++) {
     for (var x = 0; x < GRID_SIZE; x++) {
@@ -18,39 +18,10 @@ for (var y = 0; y < GRID_SIZE; y++) {
         tile.id = `${x}-${y}`
         tile.classList.add('tile')
 
-
-        // // get valid numbers for tile
-        // var validNumbers = [1, 2, 3, 4, 5]
-        // for (let direction of EXTENDED_DIRECTIONS) {
-        //     var otherTileCoords = [x + direction[0], y + direction[1]]
-        //     var otherTile = GetTileFromCoords(otherTileCoords)
-
-        //     if (otherTile) {
-        //         let otherTileNumber = parseInt(otherTile.querySelector('p').innerHTML)
-        //         if (validNumbers.includes(otherTileNumber)) {
-        //             validNumbers.splice(validNumbers.indexOf(otherTileNumber), 1)
-        //         }
-        //     }
-        // }
-
         let number = document.createElement('p')
 
-        // if (numberCounts.reduce((a, b) => a + b) % 6 != 0) {
-        //     let tempCounts = [...numberCounts].map((v, i) => [i, v])
-        //     let minimumCount = tempCounts.sort((a, b) => a[1] > b[1])[0][1]
-        //     tempCounts = tempCounts.filter((v) => v[1] == minimumCount) .map((v) => v[0])
-        //     validNumbers.sort((a, b) => tempCounts.indexOf(a - 1) > tempCounts.indexOf(b - 1))
-        // }
-        // chosenNumber = validNumbers[Math.round(Math.random() * (validNumbers.length - 1))]
-
-        // number.innerHTML = chosenNumber
-
-        // numberCounts[chosenNumber - 1] += 1
-
-        // console.log(numberCounts)
-
         tile.appendChild(number)
-        grid.appendChild(tile)
+        gridElement.appendChild(tile)
     }
 }
 
@@ -77,31 +48,19 @@ function runPossibilityStep(current, n, combinations) {
 }
 
 function GetAvailableTilesCount() {
-    // let availableTiles = GRID_SIZE * GRID_SIZE
-    // for (let block of blocks) {
-    //     availableTiles -= block.tiles.length
-    // }
-    // return availableTiles
-    let availableTiles = GRID_SIZE * GRID_SIZE
-    for (let tile of grid.children) {
-        if (IsTileTaken(tile.id)) {
-            availableTiles -= 1
-        }
-    }
+    let availableTiles = (GRID_SIZE * GRID_SIZE) - blocks.reduce((partialSum, a) => partialSum + a.length, 0);
+    
     return availableTiles
 }
-function IsTileTaken(tileString) {
-    // for (let block of blocks) {
-    //     if (block.tiles.includes(tileString)) {
-    //         return true
-    //     }
-    // }
-    // return false
-    let tile = GetTileFromCoords(tileString)
-    let number = tile.querySelector('p').innerHTML
+// function IsTileAvailable(tileString) {
+//     for (let block of blocks) {
+//         if (block.includes(tileString)) {
+//             return false
+//         }
+//     }
 
-    return number != ''
-}
+//     return true
+// }
 function CoordsToString(coords) {
     return `${coords[0]}-${coords[1]}`
 }
@@ -119,12 +78,17 @@ function GetTileFromCoords(coords) {
     }
     return document.getElementById(coordsString)
 }
-function GetBlockFromTile(tile) {
+
+function GetBlockFromCoords(coords) {
+    stringCoords = CoordsToString(coords)
+
     for (let block of blocks) {
-        if (block.tiles.includes(tile.id)) {
+        if (block.includes(stringCoords)) {
             return block
         }
     }
+
+    return false
 }
 
 function IsValidCoordinate(coords) {
@@ -144,7 +108,7 @@ function shuffleArray(array) {
 }
 
 function IsGridValid() {
-    for (let tile of grid.children) {
+    for (let tile of grid) {
         let number = tile.querySelector('p').innerHTML
         let currentTileCoords = StringToCoords(tile.id)
 
@@ -184,7 +148,7 @@ function GenerateRandomBlock(initialTile, blockSize) {
                 continue
             }
             
-            if (!IsTileTaken(CoordsToString(newTile)) && !blockTiles.includes(CoordsToString(newTile))) {
+            if (!GetBlockFromCoords(newTile) && !blockTiles.includes(CoordsToString(newTile))) {
                 success = true
                 currentPath.push(newTile)
                 blockTiles.push(CoordsToString(newTile))
@@ -221,175 +185,204 @@ var startTime = Date.now()
 var iterationCount = 0
 blocks = []
 
-function PlaceBlockRecursive(blocks, recursiveIndex) {
-    iterationCount += 1
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-    var availableSpace = GetAvailableTilesCount()
+function GenerateBlocks() {
+    blocks = []
 
-    if (availableSpace == 0) {
+    while (GetAvailableTilesCount() > 0) {
+         //get starting tile for block
+        var initialTile = [0, 0]
+        while (GetBlockFromCoords(initialTile)) {
+            var tileIndex = CoordsToIndex(initialTile)
+            initialTile[0] = (tileIndex + 1) % GRID_SIZE
+            initialTile[1] = Math.floor((tileIndex + 1) / GRID_SIZE)
+        }
+
+        var minBlockSize = 1
+
+        // for (let direction of EXTENDED_DIRECTIONS) {
+        //     let otherCoords = [initialTile[0] + direction[0], initialTile[1] + direction[1]]
+        //     let block = GetBlockFromCoords(otherCoords)
+
+        //     if (block && block.length == 1) {
+        //         minBlockSize = 2
+        //         break
+        //     }
+        // }
+
+        var maxBlockSize = Math.min(GetAvailableTilesCount(), 5)
+        // if (minBlockSize > maxBlockSize) {
+        //     return false
+        // }
+
+        // var possibleBlockSizes = [1, 2, 3, 4, 5].filter((v) => v <= maxBlockSize)
+        // shuffleArray(possibleBlockSizes)
+
+        var blockSize = getRandomInt(minBlockSize, maxBlockSize)
+        let blockTiles = GenerateRandomBlock(initialTile, blockSize)
+
+        blocks.push(blockTiles)
+    }
+
+    return true
+}
+
+function ClearTileContent() {
+    blocks.forEach((block) => {
+        block.forEach((v) => {
+            let tile = GetTileFromCoords(v)
+            tile.querySelector('p').innerHTML = ''
+        })
+    }) 
+}
+
+function GetGridPossibleValues() {
+    let possibleValues = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill([]))
+
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            var values = []
+            if (grid[y][x] <= 0) {
+                var block = GetBlockFromCoords([x, y])
+                values = Array(block.length).fill(1).map((_, i) => (i + 1))
+                
+                blocked = []
+                for (let direction of EXTENDED_DIRECTIONS) {
+                    let otherCoords = [x + direction[0], y + direction[1]]
+                    let value = IsValidCoordinate(otherCoords) ? grid[otherCoords[1]][otherCoords[0]] : 0
+                    if (value > 0) {
+                        blocked.push(value)
+                    }
+                }
+
+                block.forEach((s) => {
+                    let coord = StringToCoords(s)
+                    let value = grid[coord[1]][coord[0]]
+                    if (value > 0) {
+                        blocked.push(value)
+                    }
+                })
+
+                values = values.filter((n) => !blocked.includes(n))
+            }
+            possibleValues[y][x] = values
+        }
+    }
+
+    return possibleValues
+}
+
+function calculatePoints(value, x, y, possibleValues) {
+    let points = 0
+
+    for (let direction of EXTENDED_DIRECTIONS) {
+        let otherCoords = [x + direction[0], y + direction[1]]
+        if (IsValidCoordinate(otherCoords) && possibleValues[otherCoords[1]][otherCoords[0]].includes(value)) {
+            points += 1
+        }
+    }
+
+    return points
+}
+
+function recursiveSolve() {
+    // check if grid is filled
+    let availableTiles = GRID_SIZE * GRID_SIZE
+
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            if (grid[y][x] > 0) {
+                availableTiles -= 1
+            }
+        }
+    }
+
+    if (availableTiles == 0) {
         return true
     }
 
-    //get starting tile for block
-    var initialTile = [0, 0]
-    while (IsTileTaken(CoordsToString(initialTile))) {
-        var tileIndex = CoordsToIndex(initialTile)
-        initialTile[0] = (tileIndex + 1) % GRID_SIZE
-        initialTile[1] = Math.floor((tileIndex + 1) / GRID_SIZE)
+    // generate possible values for every cell
+    let possibleValues = GetGridPossibleValues()
+    let options = []
+
+    // get options
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            if (possibleValues[y][x].length == 0) {
+                if (grid[y][x] <= 0) {
+                    // no possible values for a tile
+                    return false
+                }
+            } else {
+                options.push({
+                    values: possibleValues[y][x],
+                    x: x,
+                    y: y
+                })
+            }
+        }
     }
 
-    var maxBlockSize = Math.min(availableSpace, 5)
+    options.sort(function(a, b) {
+        return a.values.length - b.values.length
+    })
 
-    var possibleBlockSizes = [1, 2, 3, 4, 5].filter((v) => v <= maxBlockSize)
+    let selectedOption = options[0]
+    let values = selectedOption.values
 
-    shuffleArray(possibleBlockSizes)
+    // sort values by points system with best value first
+    values.sort(function(a, b) {
+        return calculatePoints(a, selectedOption.x, selectedOption.y, possibleValues) - calculatePoints(b, selectedOption.x, selectedOption.y, possibleValues)
+    })
 
-    for (let blockSize of possibleBlockSizes) {
-        //for (let i = 0; i < 5; i++) {
-            let blockTiles = GenerateRandomBlock(initialTile, blockSize)
-            
-            var blockPossibilites = GeneratePossibilities(blockTiles.length)
-            shuffleArray(blockPossibilites)
-
-            for (let possibility of blockPossibilites) {
-                blockTiles.forEach((v, i) => {
-                    let tile = GetTileFromCoords(v)
-                    tile.querySelector('p').innerHTML = possibility[i]
-                })
-                if (IsGridValid()) {
-                    //console.log(recursiveIndex, '------ FOUND VALID GRID -----')
-                    //console.log(blockTiles)
-                    //console.log('possibility:', possibility)
-                    if (PlaceBlockRecursive(blocks, recursiveIndex + 1)) {
-                        console.warn(recursiveIndex, '-------- SUCCESS -------')
-                        blocks.push({
-                            tiles: blockTiles
-                        })
-                        return true
-                    }
-                }
-            }
-
-            blockTiles.forEach((v, i) => {
-                let tile = GetTileFromCoords(v)
-                tile.querySelector('p').innerHTML = ''
-            })
-        //}
+    for (let value of values) {
+        grid[selectedOption.y][selectedOption.x] = value
+        if (recursiveSolve()) {
+            return true
+        } else {
+            grid[selectedOption.y][selectedOption.x] = 0
+        }
     }
 
     return false
 }
 
-// var result = false;
-// while (!result) {
-//     result = PlaceBlockRecursive()
-// }
-PlaceBlockRecursive(blocks, 1)
+function SolveGrid() {
+    grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0))
 
-// while (true) {
-//     var availableSpace = GetAvailableTilesCount()
+    return recursiveSolve()
+}
 
-//     // once the whole grid has been filled you can exit the loop
-//     if (availableSpace == 0) {
-//         break
-//     }
-    
-//     // get starting tile for block
-//     var initialTile = [0, 0]
-//     while (IsTileTaken(CoordsToString(initialTile))) {
-//         var tileIndex = CoordsToIndex(initialTile)
-//         initialTile[0] = (tileIndex + 1) % GRID_SIZE
-//         initialTile[1] = Math.floor((tileIndex + 1) / GRID_SIZE)
-//     }
-
-//     // get valid block size
-//     var maxBlockSize = Math.min(availableSpace, 5)
-
-//     // // find invalid block sizes
-//     // invalidBlockSizes = []
-//     // for (let direction of EXTENDED_DIRECTIONS) {
-//     //     let newTileCoords = [initialTile[0] + direction[0], initialTile[1] + direction[1]]
-//     //     if (!IsValidCoordinate(newTileCoords)) {
-//     //         continue
-//     //     }
-
-//     //     let newTileBlock = GetBlockFromTile(GetTileFromCoords(newTileCoords))
-
-//     //     if (newTileBlock && newTileBlock.tiles.length < 4) {
-//     //         invalidBlockSizes.push(newTileBlock.tiles.length)
-//     //     }
-//     // }
-
-//     // while (true) {
-//     //     blockSize = Math.round(Math.random() * maxBlockSize) + 1
-
-//     //     // check that block does not have the same size as any of the blocks around it
-//     //     if (!invalidBlockSizes.includes(blockSize) || availableSpace < 4) {
-//     //         break
-//     //     }
-//     // }
-//     // console.log(initialTile, invalidBlockSizes, blockSize)
-
-//     var possibleBlockSizes = [1, 2, 3, 4, 5].filter((v) => v <= maxBlockSize)
-//     var initalPossibleSizes = possibleBlockSizes.length
-//     var foundValidBlock = false
-
-//     for (let i = 0; i < initalPossibleSizes; i++) {
-//         var blockSize = possibleBlockSizes[Math.round(Math.random() * possibleBlockSizes.length)]
-//         var blockTiles = GenerateRandomBlock(initialTile, blockSize)
-        
-//         // fill in numbers blocks
-//         var blockPossibilites = GeneratePossibilities(blockTiles.length)
-//         shuffleArray(blockPossibilites)
-
-//         var wasGameValid = false
-//         for (let possibility of blockPossibilites) {
-//             blockTiles.forEach((v, i) => {
-//                 let tile = GetTileFromCoords(v)
-//                 tile.querySelector('p').innerHTML = possibility[i]
-//             })
-//             if (IsGridValid()) {
-//                 wasGameValid = true
-//                 break
-//             }
-//         }
-
-//         if (wasGameValid) {
-//             foundValidBlock = true
-//             break
-//         }
-
-//         possibleBlockSizes.splice(possibleBlockSizes.indexOf(blockSize), 1)
-//     }
-
-//     if (!foundValidBlock) {
-//         console.warn('uh oh!')
-//     }
-
-//     blocks.push({
-//         tiles: blockTiles
-//     })
-// }
-
-
-
-for (let tile of grid.children) {
-    // find the block the tile belongs to
-    var tileBlock = GetBlockFromTile(tile)
-
-    // this can be removed later as every tile should have a block
-    if (tileBlock == null) {
-        continue
+// generate valid puzzle
+do {
+    let valid = false
+    while (!valid) {
+        valid = GenerateBlocks()
     }
 
-    for (let directionClass of ['u', 'd', 'l', 'r']) {
-        var direction = DIRECTIONS_KEYS[directionClass]
-        var tileCoords = StringToCoords(tile.id)
-        var newTileCoords = [tileCoords[0] + direction[0], tileCoords[1] + direction[1]]
-        if (tileBlock.tiles.includes(CoordsToString(newTileCoords))) {
-            tile.classList.add(directionClass)
+    blocks.sort(function(a, b) {
+        return a.length - b.length
+    })
+}
+while (!SolveGrid())
+
+for (let y = 0; y < GRID_SIZE; y++) {
+    for (let x = 0; x < GRID_SIZE; x++) {
+        // find the block the tile belongs to
+        var tileBlock = GetBlockFromCoords([x, y])
+        var tile = GetTileFromCoords([x, y])
+        tile.innerHTML = grid[y][x]
+
+        for (let directionClass of ['u', 'd', 'l', 'r']) {
+            var direction = DIRECTIONS_KEYS[directionClass]
+            var tileCoords = [x, y]
+            var newTileCoords = [tileCoords[0] + direction[0], tileCoords[1] + direction[1]]
+            if (tileBlock.includes(CoordsToString(newTileCoords))) {
+                tile.classList.add(directionClass)
+            }
         }
     }
 }
-
-console.log(blocks)
